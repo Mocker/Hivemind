@@ -1,0 +1,566 @@
+<html>
+<head>
+<title> HiveMind Media Player</title>
+<!-- Reads parsed youtube links from a reddit music thread and makes a playlist out of them -->
+<!-- adding support for playlists from several sources, able to display video, pictures, text and music -->
+<!-- Author: Ryan Guthrie (ryanguthrie.com) - reddit s/n IrishWilly, SokerCap -->
+
+<!-- Full version of jQuery Tools + jQuery 1.3.2 --> 
+	<script src="http://cdn.jquerytools.org/1.1.2/full/jquery.tools.min.js"></script>
+	<script src="/scripts/swfobject/swfobject.js"></script>
+	<!--<script src="/scripts/yoxview/yoxview-init.js"></script>-->
+<script>
+
+var songs = new Array();
+var numsongs = 0;
+var cursong = 0;
+var playthrough = 1;
+var ytplayer;
+var scrollAPI;
+
+//static playlists for now
+var playlists = new Array();
+playlists[0] = new Array('Reddit Recommends','recommends');
+playlists[1] = new Array('/r/ListenToThis','listentothis');
+playlists[2] = new Array('/r/funny','funny');
+playlists[3] = new Array('/r/videos','videos');
+playlists[4] = new Array('/r/pics','pics');
+playlists[5] = new Array('Boston.com Big Picture','bigpicture');
+playlists[6] = new Array("/r/ItookAPicture","itap");
+playlists[7] = new Array("/r/WindowShots","windowshots");
+playlists[8] = new Array("/r/Wallpaper","wallpaper");
+playlists[9] = new Array("/r/GoneWild","gonewild");
+playlists[10] = new Array("/r/Video","video");
+playlists[11] = new Array("/r/Music","music");
+playlists[12] = new Array("/r/WeAreTheMusicMakers","wearethemusic");
+playlists[13] = new Array("/r/ElectronicMusic","electronic");
+playlists[14] = new Array("/r/ClassicalMusic","classical");
+playlists[15] = new Array("/r/Mixes","mixes");
+playlists[16] = new Array("/r/Mashups","mashups");
+playlists[17] = new Array("/r/ChillMusic","chill");
+
+var mouseY=0; 
+var mouseX = 0;
+var scrollabled = 0;
+var embedRE = /src="(.+?)"/ ;
+var vimeoRE = /data="http:\/\/vimeo.com\/moogaloop.swf"/ ;
+
+//yt player callback
+function onYouTubePlayerReady(playerId) {
+      ytplayer = document.getElementById("myytplayer");
+	  if(ytplayer){ 
+		ytplayer.playVideo(); setTimeout( 'checkPlayer()', 1000);
+		ytplayer.addEventListener("onError","onYoutubeError"); 
+		}
+    }
+
+function checkPlayer(){
+	if(ytplayer){
+		var dur = ytplayer.getDuration();
+		var cur = ytplayer.getCurrentTime();
+		window.status = cur + " / "+dur;
+		if(dur - cur < 3 && playthrough){
+			if(cursong == numsongs - 1){ loadSong(0); }
+			else { loadSong(cursong + 1); }
+		}
+	}
+	setTimeout('checkPlayer()',1000);
+}
+//errors include video removed or not found - continue to next
+function onYoutubeError(errCode){
+	if(errCode == 100 || errCode == 101 || errCode == 150){
+		loadSong(cursong+1);
+	}
+}
+	
+//capture mouse location for displaying info box
+function getMouseXY(e) {
+	mouseY = e.pageY ; mouseX = e.pageX;
+}
+//start ajax request for songs
+function loadSongs(pID)
+{
+	//alert("loading songs");
+	//if(numsongs > 0 ){ return; } //only parse once when page loads because I'm lazy
+	var pURL = 'http://www.thegupstudio.com/scripts/list_music.php';
+	if( ! isNaN(pID) ){ pURL = pURL + '?pl=' + playlists[pID][1]; }
+	//alert("Loading playlist at : "+pURL);
+	var jqxhr = $.getJSON(pURL, function(jDAT){
+		parseSongs(jDAT);
+	})
+	.error(function(){ 
+		$('#tubey_txt').html('<br><b>Oh noes!</b><br>There was an error loading the songs list..<br>'); });
+	$('#navi_playtitle').html(playlists[pID][0]);
+	$('#pl_playing').html(playlists[pID][0]);
+	
+}
+//parse returned song data from json and populate list
+function parseSongs(jDat)
+{
+	$('div.navi_playlists').css('display','none');
+	alert("Lazers Charged");
+	$("#itemlist").html('');
+	songs = new Array();
+	$.each(jDat.Songs, function(i,item){
+		songs[i] = item;
+		numsongs = i;
+		$("#itemlist").append("<div  class='song_item' onmouseover='showInfo(this,"+i+");' onmouseout='hideInfo(this);' onClick='loadSong("+i+");'>"+item.title_r+"</div>");
+		
+	});
+
+	//scrollable go
+	if(scrollabled == 0 ){
+		scrollabled = 1; 
+		scrollAPI = $("div.scrollable").scrollable({
+			vertical: true,
+			size: 3
+		}).mousewheel().navigator({api: true});
+		$("#itemlist").css('display',"block");
+	}
+	else {
+		if(scrollAPI){ scrollAPI.reload().begin(); }
+		else {
+			$("div.scrollable").scrollable().reload().begin(); }  
+		}
+}
+
+//show song info box
+function showInfo(div,sID)
+{
+	div.style.background = '#333366';
+	
+	cursong = sID;
+	
+	$('#song_title').html( songs[sID].title_r );
+	if(songs[sID].thumbnail){ $('#tube_img').attr('src',songs[sID].thumbnail); }
+	else if(songs[sID].embed && songs[sID].embed_thumb){  $('#tube_img').attr('src',songs[sID].embed_thumb); }
+	else if(songs[sID].source == "youtube" || songs[sID].source == "youtube.com"){ $('#tube_img').attr('src','http://img.youtube.com/vi/'+songs[sID].id+'/2.jpg'); }
+	else { $('#tube_img').attr('src',''); }
+	$('#song_comment').html('<b>+'+songs[sID].score+'</b><br><i>'+songs[sID].body+'</i><br>-'+songs[sID].author);
+	
+	var divOff = $(div).offset();
+	$('div.song_info').css('top', divOff.top);
+	$('div.song_info').css('left', divOff.left-300);
+	$('div.song_info').css('display','block');
+	divOff = $('div.song_info').offset();
+}
+function hideInfo(div)
+{
+	$(div).css('background','');
+	$('div.song_info').css('display','none');
+}
+
+function loadSong(sID)
+{
+	$('div.title').html("Loading "+songs[sID].title);
+	if( songs[sID].embed ){
+		var params = { allowScriptAccess: "always", wmode: "transparent" };
+		var matches = embedRE.exec(songs[sID].embed_html);
+		var swfurl ;
+		if(matches && matches[0]){ swfurl = matches[0].substr(5, matches[0].length-6); }
+		else if(songs[sID].source == "vimeo.com"){ 
+			swfurl = "http://vimeo.com/moogaloop.swf";
+			params.data = swfurl;
+			var vimRE = /name="flashvars" value="(.+?)"\&gt\;/ ;
+			var vimMatch = vimRE.exec(songs[sID].embed_html);
+			if(vimMatch[0]){
+				params.flashvars = vimMatch[0].substr(24,vimMatch[0].length-27) ;
+			}
+		} 
+		if(songs[sID].source == "youtube.com"){ swfurl += "?enablejsapi=1&playerapiid=ytplayer"; }
+		else if(songs[sID].source == "soundcloud.com"){ swfurl += "&auto_play=true"; }
+		else if(songs[sID].source == "ted.com"){
+			var tedRE = /flashvars="vu=(.+?)\&amp/ ;
+			var tedMatch = tedRE.exec(songs[sID].embed_html);
+			if(tedMatch){ params.flashvars = "vu="+tedMatch[0].substr(14,tedMatch[0].length-18) ; 
+				params.bgColor = "#000000"; params.allowFullScreen = "true";
+			}
+			else { throw("Could not find TED match in: "+songs[sID].embed_html); }
+		}
+		$('#tubey').html("<div id='sacrifice' style='z-index: 0;'></div>");
+		var atts = { id: "myytplayer" };
+		swfobject.embedSWF(swfurl,"sacrifice",560,530,"8",null,null,params,atts);
+	}
+	else if( songs[sID].media == "pic" ){
+		//TODO:: Load images via lightbox or something less shitty
+		songs[sID].link.replace(/\\/g,'');
+		$('#tubey').html('<center><div class="yoxview"><a href="'+songs[sID].link+'" target="_blank"><img id="tubey_pic" src="'+songs[sID].link+'" title="'+songs[sID].title_r+'"></a></div></center>');
+		var newi = document.createElement("img");
+		newi.setAttribute("src", songs[sID].link); newi.setAttribute("title", songs[sID].title_r);
+		var newd = document.createElement("div");
+		newd.setAttribute("class","yoxview");
+		newd.appendChild(newi);
+		$(newi).animate({width: 530});
+		$('#tubey').add(newd);
+		$('#tubey div img').animate({width: 500});
+		/*var h = $('#tubey_pic').offsetHeight; var w = $('#tubey_pic').offsetWidth ;
+		if( h > 560 || w > 530 ){
+			var newh = 560;
+			var neww = 560 / h * w ;
+			if(w > h ){
+				neww = 530;
+				newh = 530 * h / w ;
+			}
+			$('#tubey_pic').css('height',newh); $('#tubey_pic').css('width',neww);
+			
+		}*/
+		
+	}
+	else if( songs[sID].source == 'youtube' ){
+	$('#tubey').html("<div id='sacrifice' style='z-index: 0;'></div>");
+	var params = { allowScriptAccess: "always", wmode: "transparent" };
+	var atts = { id: "myytplayer" };
+	swfobject.embedSWF("http://www.youtube.com/v/"+songs[sID].id+"?enablejsapi=1&playerapiid=ytplayer","sacrifice",560,530,"8",null,null,params,atts);
+	}
+	$('div.title').html(songs[sID].title_r);
+	cursong = sID;
+	$('#nav_status').html( cursong+' / '+songs.length);
+	if(scrollAPI){ scrollAPI.seekTo(cursong); }
+}
+
+function toggleInfo(){
+	if( $('div.song_info').css('display') == 'block' ){ $('div.song_info').css('display','none'); }
+	else {
+		var sID = cursong; 
+		$('#song_title').html( songs[sID].title_r );
+		$('#tube_img').attr('src','http://img.youtube.com/vi/'+songs[sID].id+'/2.jpg');
+		$('#song_comment').html('<b>+'+songs[sID].score+'</b><br><i>'+songs[sID].body+'</i><br>-'+songs[sID].author);
+		
+		$('div.song_info').css('top', mouseY-550);
+		$('div.song_info').css('display','block'); 
+	}
+}
+
+
+//sorting functions -- uh.. TODO
+function sortSongs(sortType)
+{
+	//alert("Nah the playlist looks fine");
+	if(sortType == "score"){
+		songs.sort(sortByScore); }
+	else if(sortType == "title"){
+		songs.sort(sortByTitle); }
+	else if(sortType == "random"){
+		songs = shuffle(songs); }
+	else { return; }
+	
+	$("#itemlist").html("");
+	cursong = 0;
+	$.each(songs, function(i,item){
+		$("#itemlist").append("<div  class='song_item' onmouseover='showInfo(this,"+i+");' onmouseout='hideInfo(this);' onClick='loadSong("+i+");'>"+item.title_r+"</div>");
+	});
+	//scrollable go
+	$("div.scrollable").scrollable({
+		vertical: true,
+		size: 3
+	}).mousewheel();
+	$("#itemlist").css('display',"block");
+	
+}
+function sortByScore(a,b){
+	var x = a.score;
+	var y = b.score;
+	return ((x < y) ? 1 : ((x > y) ? -1 : 0));
+}
+function sortByTitle(a,b){
+	var x = a.title_r.toString().toLowerCase();
+	var y = b.title_r.toString().toLowerCase();
+	return ((x < y) ? -1 : ((x > y) ? 1 : 0));
+}
+function shuffle(o){ //v1.0 from http://snippets.dzone.com/posts/show/849
+	for(var j, x, i = o.length; i; j = parseInt(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
+	return o;
+};
+
+function getLucky()
+{
+		var newSID = Math.floor(Math.random()*songs.length) ;
+		loadSong(newSID);
+}
+
+function showAbout(){
+	if( $('#aboutits').css('display') == 'block' ){ $('#aboutits').css('display','none'); }
+	else { $('#aboutits').css('display','block'); }
+}
+function toggleRepeat(img){
+	if(playthrough){
+		playthrough = 0;
+		img.src = "whatmusic.png";
+		img.alt = "play single";
+	}
+	else {
+		playthrough = 1;
+		img.src = "/scripts/repeat.png";
+		img.alt = "/scripts/play all";
+	}
+}
+
+//handle navigation buttons
+function navi(whereto){
+	var scrollit ;
+	if(!scrollAPI){
+		scrollit = $('div.scrollable').scrollable();
+	} else { scrollit = scrollAPI ; }
+	
+	if(whereto == "next"){
+		cursong += 1; 
+		if(cursong >= songs.length ){ cursong -= 1; return; }
+		loadSong(cursong);
+	}
+	else if(whereto == "prev"){
+		if(cursong == 0){ return; }
+		cursong -= 1;
+		loadSong(cursong);
+	}
+	else if(whereto == "scrollback"){
+		scrollit.prevPage();
+	}
+	else if(whereto == "scrollforward"){
+		scrollit.nextPage();
+	}
+	
+}
+
+//do stuff when dom is finished
+$(function(){
+	//document.onmousemove = getMouseXY;
+
+	$('ul.pl_list li').click( function() {
+			$(this).children().slideToggle("slow") ;
+		});
+	
+	//$('.log').ajaxError(function(e,xhr,settings,exception) {
+	//	$('#tubey_txt').html('<br><b>Oh noes!</b> <br>There was an problem loading the song list');
+	//});
+	loadSongs(0);
+	
+	var pl_off = $('div.menu').offset() ; 
+	$('div.pl_navbar').css('top',pl_off.top);
+	$('div.pl_navbar').css('left',pl_off.left+225);
+	
+});
+
+
+
+
+</script>
+<style>
+/* Vertical scrolling based off http://flowplayer.org/tools/demos/scrollable/vertical.html */
+/* root element for scrollable */ 
+div.scrollable { 
+ 
+    /* required settings */ 
+    position:relative; 
+    overflow:hidden; 
+ 
+    /* vertical scrollers have typically larger height than width */ 
+    height: 500px; 
+    width: 100%;
+	background: #000; border: 1px solid #ccc; margin-top: 0px;
+} 
+ 
+/* root element for scrollable items */ 
+div.scrollable div.items { 
+    position:absolute; 
+	width: 100%;
+	cursor: pointer;
+	/* display: none; toggle this off once it's loaded */
+    /* this time we have very large space for the height */ 
+    height:20000em; 
+}
+
+
+
+body {
+  background: #2A2626 url('http://a1.twimg.com/profile_background_images/29596348/fishy_leftbar.png') fixed no-repeat;
+  color: #eee; 
+  }
+a { color: #fff; }
+div.header { margin-left: 20px; margin-top: 10px; color: #59575a; }
+div.header span { font-size: 0.7em; }
+div.bigbox {  width: 800px; height: 600px; margin: 50px auto; 
+	border: 0px solid red; }
+
+div.topbar { width: 100%; height:24px; margin: 0px auto; border: 1px solid white; }
+div.topbar div { padding-left: 10px; padding-right: 20px; float: left; height: 24px; }
+div.title { background: #000; width: 430px; }
+div.info_btn { width: 40px; background: #3A3636; text-align: center; cursor: pointer; }
+div.sort_bar { margin-left: 10px; width: 220px; }
+a.sort_bar:hover{ cursor: pointer; color: #6666cc; }
+img.sort_bar { position: relative; width:25px; height: 24px; float: right; margin-right: 20px;} 
+
+div.player { height: 530px; margin-top: 10px; float: left; width: 560px; border: 1px solid #ccc; background: #000; }
+
+
+div.menu { margin-top: 10px; float: right; width: 220px; border: 0px solid yellow; }
+div.playlist { height: 490px; border: 0px solid white; padding-top: 0px; }
+ul.playlist { background: #000; border-left: 2px solid #ccc; border: 1px solid #ccc; border-bottom: 1px solid #ccc; height: 480px; margin-top: 0px; } 
+div.scrollable { max-height: 480px; }
+div.randomizer { height: 22px; background: #666; color: #000; border: 1px solid #ccc;  }
+div.randomizer:hover { background: #999; cursor: pointer;  }
+div.navi { background: #3A3636; border: 1px solid #fff; width: 100%; margin: 0px;} 
+
+div.song_info { z-index: 1200; font-size: 0.6em; position: absolute; background: #2A2626; width: 250px; height: 210px; border: 2px solid #ccc; left: -675px; 
+	display: none; overflow: hidden; }
+div.song_info h3 { width: 100%; font-size: 1.2em; height: 8px; }
+#tube_preview { width: 100%; height: 110px; background: #000; }
+#tube_preview img { float: left; }
+div.song_info div blockquote { padding-left: 15px; }
+
+div.log { position: fixed; top: 100px; left: 400px; width: 250px; height: 50px; background: #000; border: 2px solid red; display: none; }
+
+#tubey { top: 100px; background-color: #000; z-index: 0; }
+#aboutits { display: none; border: 1px solid black; color: #ccc; font-size: 0.6em; }
+#divplayer { background-color: #000; z-index: 0; }
+
+div.navi_playlists { display: none; position: relative; width: 280px; background: #000; border: 1px solid #fff; min-height: 300px; max-height: 580px; float: right; top: -170px;}
+div.pl_header { background: #3A3636; border-bottom: 1px solid #333; }
+div.pl_info { display: none; background: #ccc; color: #000; }
+li.pl_list:hover { background: #3A3636; cursor: pointer; }
+li.pl_list input { margin-left: 20px; }
+
+div.pl_navbar {
+	position: fixed; width: 30px; height: 60px; right: 20px; top: 100px; }
+}
+div.pl_navbar img { cursor: pointer; }
+img.pl_navbar :hover { background-color: #3A3636; }
+
+</style>
+</head>
+<body>
+<script>
+
+</script>
+<div class="header">
+	<h2>HiveMind Media <br>
+	<script type="text/javascript" src="http://reddit.com/buttonlite.js?i=1"></script>
+	<br>
+	<span>A youtube/reddit mashup, with redditors providing the playlist <a href="#" onClick='showAbout();'>?</a></span>
+	<span id='aboutits'>
+	<b>About this page!</b><br>
+	A php script parses <a href='http://www.reddit.com/r/AskReddit/comments/b9ud4/submit_one_song_that_you_think_everyone_should/'>this awesome reddit page full of music suggestions</a>, every 5 minutes.<br>
+	The results are loaded into the playlist you see over there ->  Click on a song and it'll load the related youtube video. Simple eh<br>
+	You can select additional playlists that are generated by parsing various subreddits and other sources for videos, music and pictures!<br>
+	The code was written by <a href='http://ryanguthrie.com'>Ryan Guthrie</a>, aka <a href='http://www.reddit.com/user/Sokercap/'>SokerCap</a>
+	<br><a onClick='showAbout();'>Close X</a><br>
+	</span></h2>
+</div>
+
+<div class="pl_navbar">
+	<span id="nav_status"></span><br>
+	<img src="/scripts/btn_back.png" onClick='navi("scrollback");'><br>
+	<img src="/scripts/btn_prev.png" onClick='navi("prev");'><br>
+	<img id="btn_play" src="/scripts/btn_play.png"><br>
+	<img src="/scripts/btn_next.png" onClick='navi("next");'><br>
+	<img src="/scripts/btn_forward.png" onClick='navi("scrollforward");'><br>
+</div>
+
+<div class="bigbox">
+	<div class="topbar">
+		<div class="title">Trolololololol</div>
+		<div class="info_btn" onClick='toggleInfo();'> i </div>
+		<div class="sort_bar"> Sort: <a class='sort_bar' onClick='sortSongs("score");'>Score</a> / 
+		<a class='sort_bar' onClick='sortSongs("title");'>Title</a> / 
+		<a class='sort_bar' onClick='sortSongs("random");'>Random</a>
+		<img class='sort_bar' onClick="toggleRepeat(this);" src='/scripts/repeat.png' alt='play all'>
+		</div>
+	</div>
+	
+	<div class="player" id="divplayer"><span id='tubey'><center><span id='tubey_txt'>Insert Tubes Here</span><br><img src='http://thegupstudio.com/spideydance.gif'></center></span>
+	
+	
+		<div class="navi_playlists">
+			<div class='pl_header'>SELECT A NEW PLAYLIST  <input type=button name="closethis" value="close" onClick="this.parentNode.parentNode.style.display = 'none';">
+			</div>
+			Currently Playing: <span id='pl_playing'>Reddit Recommends</span><br>
+			<ul class="pl_list">
+				<li class="pl_list">Reddit Recommends <div class="pl_info">Original thread asking for music recommendations. List generated from youtube links
+					<input type=button name='btnLoadPL' value='load' onClick='loadSongs(0);'></div></li>
+				<li class="pl_list"> /r/ListenToThis <div class="pl_info">Subreddit where users recommend songs
+					<input type=button name='btnLoadPL' value='load' onClick='loadSongs(1);'></div></li>
+				<li class="pl_list"> /r/Music <div class="pl_info">All Things Musical
+                                        <input type=button name='btnLoadPL' value='load' onClick='loadSongs(11);'></div></li>
+				<li class="pl_list"> /r/WeAreTheMusicMakers <div class="pl_info">Professionals and amateurs share their works
+                                        <input type=button name='btnLoadPL' value='load' onClick='loadSongs(12);'></div></li>
+				<li class="pl_list"> /r/ElectronicMusic <div class="pl_info">Beeps, Bleeps and everything in between
+                                        <input type=button name='btnLoadPL' value='load' onClick='loadSongs(13);'></div></li>
+				<li class="pl_list"> /r/ClassicalMusic <div class="pl_info">Share classical music
+                                        <input type=button name='btnLoadPL' value='load' onClick='loadSongs(14);'></div></li>
+				<li class="pl_list"> /r/Mixes <div class="pl_info">electronic music mixes from techno house drum and bass, minimal etc..
+                                        <input type=button name='btnLoadPL' value='load' onClick='loadSongs(15);'></div></li>
+				<li class="pl_list"> /r/Mashups <div class="pl_info">Dedicated to music mashups
+                                        <input type=button name='btnLoadPL' value='load' onClick='loadSongs(16);'></div></li>
+				<li class="pl_list"> /r/ChillMusic <div class="pl_info">A place to share music that is best turned low
+                                        <input type=button name='btnLoadPL' value='load' onClick='loadSongs(17);'></div></li>
+				<li class="pl_list"> /r/funny <div class="pl_info">Pics and Videos found in the funny subreddit
+					<input type=button name='btnLoadPL' value='load' onClick='loadSongs(2);'></div></li>
+				<li class="pl_list"> /r/Videos <div class="pl_info">Any youtube (and soon other) videos posted here
+					<input type=button name='btnLoadPL' value='load' onClick='loadSongs(3);'></div></li>
+				<li class="pl_list"> /r/Video <div class="pl_info">For people so rad they can watch 24 pics per second
+					<input type=button name='btnLoadPL' value='load' onClick='loadSongs(10);'></div></li>
+				<li class="pl_list"> /r/pics  <div class="pl_info">Uh.. pics. Only parses direct links to images
+					<input type=button name='btnLoadPL' value='load' onClick='loadSongs(4);'></div></li>
+				<li class="pl_list"> CNN Big Picture  <div class="pl_info">Pictures from CNN's Big Picture highlighting events around the world 
+					<input type=button name='btnLoadPL' value='load' onClick='loadSongs(5);'></div></li>
+				<li class="pl_list"> /r/ITookAPicture  <div class="pl_info">Pictures taken by Redditors
+					<input type=button name='btnLoadPL' value='load' onClick='loadSongs(6);'></div></li>
+				<li class="pl_list"> /r/WindowShots <div class="pl_info">Views from people's windows
+					<input type=button name='btnLoadPL' value='load' onClick='loadSongs(7);'></div></li>
+				<li class="pl_list"> /r/Wallpaper<div class="pl_info">Wallpaper found on the internet
+					<input type=button name='btnLoadPL' value='load' onClick='loadSongs(8);'></div></li>
+				<li class="pl_list"> /r/GoneWild (18+ ONLY) <div class="pl_info">Reddit Gone Wild. Adult Content.
+					<input type=button name='btnLoadPL' value='load' onClick='loadSongs(9);'></div></li>
+				
+			</ul>
+			<b>Know another source for a playlist? Recommend it!</b>
+			
+			
+		</div>
+	
+	</div>
+	
+
+	
+	<div class="menu">
+		<div class="navi">
+			<input type=button name='show_playlist' value='[ < ]' onclick="$('div.navi_playlists').slideToggle('slow');">
+			<span id='navi_playtitle' alt='current playlist'>Reddit Recommend</span>
+			<!-- TODO back/next buttons -->
+		</div>
+		<div class="playlist">
+		 <div class="scrollable vertical">
+			<div class="items" id="itemlist">
+			
+			</div>
+		 </div>
+		</div>
+		
+		<div class="randomizer" onClick="getLucky();">Feelin Lucky Punk?</div>
+			
+		
+		<div class="song_info">
+			<h3 id='song_title'>Song Title</h3>
+			<div id='tube_preview'>
+				<img id='tube_img' src='http://img.youtube.com/vi/ZES3nJQYJok/2.jpg'>
+				<blockquote id='tube_desc'><b>Title</b><br>description</blockquote>
+			</div>
+			<blockquote><span id='song_comment'>
+			Comment that had song in it - author
+			<span></blockquote>
+		</div>
+	</div>
+
+</div>
+<div class='log'></div>
+
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+try {
+var pageTracker = _gat._getTracker("UA-16123070-1");
+pageTracker._trackPageview();
+} catch(err) {}</script>
+
+</body>
