@@ -1,4 +1,4 @@
-<?
+<?php
 
 /**** *******
 	List Reddit Music
@@ -9,8 +9,17 @@
 
 header('Content-type: application/json');
 $playlist = "recommends";
-$playlists = array("chill","mashups","mixes","classical","electronic","wearethemusic","music","recommends","listentothis","funny","videos","pics","bigpicture","video","itap","windowshots","wallpaper","gonewild");
+
+$playlists = array(
+	"chill",
+	"mashups","mixes","classical","electronic",
+	"wearethemusic","music","recommends","listentothis",
+	"funny","videos","pics","bigpicture","video",
+	"itap","windowshots","wallpaper","gonewild"
+	);
+
 if($_GET['pl'] && in_array($_GET['pl'],$playlists) ){ $playlist = $_GET['pl']; }
+
 $keylist = getSongs($playlist);
 $keyblah = array( "Songs"=>$keylist );
 print json_encode($keyblah);
