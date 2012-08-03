@@ -169,14 +169,14 @@ function parseSubreddit($source,$raw){
 			if( $entry->domain == 'youtube.com'  ){
 				$ismedia = 1; }
 			if($entry->media && $entry->media->oembed && $entry->media->oembed->type == "video"){ $ismedia = 1; $oembed = 1; }
-			if(!$oembed && $entry->media_embed && $entry->media_embed->content){ $ismedia = 1; $rembed = 1; }
+			if(!$oembed && isset($entry) && $entry->media_embed && isset($entry->media_embed->content) ){ $ismedia = 1; $rembed = 1; }
 		}
 		if($source[2]['music'] ){
 			if( $entry->domain == 'youtube.com' || $entry->domain == 'soundcloud.com' ){
 				$ismedia = 1; }
 			if($entry->media && $entry->media->oembed && ( $entry->media->oembed->type == "rich" || $entry->media->oembed->type == "video" ) ){
 				$ismedia = 1;  $oembed = 1;}
-			if(!$oembed && $entry->media_embed && $entry->media_embed->content){ $ismedia = 1; $rembed = 1; }
+			if(!$oembed && $entry->media_embed && isset($entry->media_embed->content) ){ $ismedia = 1; $rembed = 1; }
 		}
 		if($ismedia == 0 && $source[2]['pics'] ){
 			$ext = substr($entry->url, strrpos($entry->url, '.') + 1);
