@@ -7,7 +7,7 @@
 
 <!-- Full version of jQuery Tools + jQuery 1.3.2 --> 
 	<script src="http://cdn.jquerytools.org/1.1.2/full/jquery.tools.min.js"></script>
-	<script src="/lib/swfobject/swfobject.js"></script>
+	<script src="swfobject/swfobject.js"></script>
 	<!--<script src="/scripts/yoxview/yoxview-init.js"></script>-->
 <script>
 
@@ -30,7 +30,7 @@ playlists[5] = new Array('Boston.com Big Picture','bigpicture');
 playlists[6] = new Array("/r/ItookAPicture","itap");
 playlists[7] = new Array("/r/WindowShots","windowshots");
 playlists[8] = new Array("/r/Wallpaper","wallpaper");
-playlists[9] = new Array("/r/GoneWild","gonewild");
+//playlists[9] = new Array("/r/GoneWild","gonewild");
 playlists[10] = new Array("/r/Video","video");
 playlists[11] = new Array("/r/Music","music");
 playlists[12] = new Array("/r/WeAreTheMusicMakers","wearethemusic");
@@ -45,11 +45,14 @@ var mouseX = 0;
 var scrollabled = 0;
 var embedRE = /src="(.+?)(\?.+)*"/ ;
 var vimeoRE = /data="http:\/\/vimeo.com\/moogaloop.swf"/ ;
+var isYTReady = false;
 
 //yt player callback
 function onYouTubePlayerReady(playerId) {
+	  console.log("YoutubePlayer ready "+playerId);
       ytplayer = document.getElementById("myytplayer");
 	  if(ytplayer){ 
+	  	isYTReady = true;
 		ytplayer.playVideo(); setTimeout( 'checkPlayer()', 1000);
 		ytplayer.addEventListener("onError","onYoutubeError"); 
 		}
@@ -61,6 +64,7 @@ function checkPlayer(){
 		var cur = ytplayer.getCurrentTime();
 		window.status = cur + " / "+dur;
 		if(dur - cur < 3 && playthrough){
+			console.log("Next song");
 			if(cursong == numsongs - 1){ loadSong(0); }
 			else { loadSong(cursong + 1); }
 		}
@@ -69,6 +73,7 @@ function checkPlayer(){
 }
 //errors include video removed or not found - continue to next
 function onYoutubeError(errCode){
+	console.log("youtube error "+errCode);
 	if(errCode == 100 || errCode == 101 || errCode == 150){
 		loadSong(cursong+1);
 	}
@@ -83,7 +88,8 @@ function loadSongs(pID)
 {
 	//alert("loading songs");
 	//if(numsongs > 0 ){ return; } //only parse once when page loads because I'm lazy
-	var pURL = 'http://www.thegupstudio.com/hivemind/list_music.php';
+	//var pURL = 'http://www.thegupstudio.com/hivemind/list_music.php';
+	var pURL = 'list_music.php';
 	if( ! isNaN(pID) ){ pURL = pURL + '?pl=' + playlists[pID][1]; }
 	//alert("Loading playlist at : "+pURL);
 	var jqxhr = $.getJSON(pURL, function(jDAT){
@@ -132,7 +138,7 @@ function showInfo(div,sID)
 {
 	div.style.background = '#333366';
 	
-	cursong = sID;
+	//cursong = sID;
 	
 	$('#song_title').html( songs[sID].title_r );
 	if(songs[sID].thumbnail){ $('#tube_img').attr('src',songs[sID].thumbnail); }
@@ -156,8 +162,9 @@ function hideInfo(div)
 function loadSong(sID)
 {
 	console.log("Loading "+sID+": "+songs[sID].title+" embed:"+songs[sID].embed+" -- source: "+songs[sID].source);
+	cursong = parseInt(sID);
 	$('div.title').html("Loading "+songs[sID].title);
-	if( songs[sID].embed ){
+	if( songs[sID].embed && songs[sID].source != 'youtube.com' && songs[sID].source != 'youtu.be' ){
 		var params = { allowScriptAccess: "always", wmode: "transparent" };
 		var matches = embedRE.exec(songs[sID].embed_html);
 		var swfurl ;
@@ -172,8 +179,20 @@ function loadSong(sID)
 			}
 		} 
 		if(songs[sID].source == "youtube.com" || songs[sID].source == "youtu.be"){ 
-			swfurl += "?start=0&enablejsapi=1&playerapiid=ytplayer&autoplay=1"; }
-		else if(songs[sID].source == "soundcloud.com"){ swfurl += "&auto_play=true"; }
+			isYTReady = false;
+			swfurl += "?start=0&enablejsapi=1&playerapiid=ytplayer&autoplay=1"; 
+		}
+		else if(songs[sID].source == "soundcloud.com"){ 
+			console.log(songs[sID]);
+			var trackRE = /tracks\%2F(\d+?)\&/ ;
+			var trackID = songs[sID].link;
+			if(trackRE.test(songs[sID].embed_html)){
+				var scMatches = trackRE.exec(songs[sID].embed_html);
+				trackID = scMatches[1];
+			}
+			swfurl = "https://player.soundcloud.com/player.swf?url=http%3A%2F%2Fapi.soundcloud.com%2Ftracks%2F"+trackID+"&amp;show_comments=true&amp;auto_play=true&amp;color=ff7700";
+			params.movie = swfurl;
+		}
 		else if(songs[sID].source == "ted.com"){
 			var tedRE = /flashvars="vu=(.+?)\&amp/ ;
 			var tedMatch = tedRE.exec(songs[sID].embed_html);
@@ -183,7 +202,8 @@ function loadSong(sID)
 			else { throw("Could not find TED match in: "+songs[sID].embed_html); }
 		}
 		$('#tubey').html("<div id='sacrifice' style='z-index: 0;'></div>");
-		if(songs[sID].source=="youtube.com" || songs[sID].source=="youtu.be"){
+		if(0 && (songs[sID].source=="youtube.com" || songs[sID].source=="youtu.be")){
+			console.log("loading iframe");
 		 var ihtml = '<iframe width="560" height="530" src="'+
 			matches[1]+'" frameborder="0" allowfullscreen autoplay></iframe>';
 		   $('#tubey').html(ihtml);
@@ -192,6 +212,7 @@ function loadSong(sID)
 
 		 
 		} else {
+			console.log("embedding swf");
 		var atts = { id: "myytplayer" };
 		console.log("url " +swfurl); console.log(params); console.log(atts);
 		swfobject.embedSWF(swfurl,"sacrifice",560,530,"8",null,null,params,atts);
@@ -223,14 +244,31 @@ function loadSong(sID)
 		}*/
 		
 	}
-	else if( songs[sID].source == 'youtube' ){
+	else if( songs[sID].source == 'youtube' || songs[sID].source == 'youtu.be' || songs[sID].source == 'youtube.com'){
+		//"http://youtu.be/YNUCY_yUHfQ"
+		var validYTIDRX = /^[\w\_\-]{6,14}$/ ;
+		var getIDRX = /[be|com]\/(.+?)$/ ;
+		var getIDRXWatch = /v=([\w\_\-]{6,14})/ ;
+		console.log(songs[sID]);
+	var ytID = songs[sID].link;
+	console.log(ytID);
+	if(! validYTIDRX.test(ytID)){
+		if( getIDRXWatch.test(songs[sID].link) ){ ytID = getIDRXWatch.exec(songs[sID].link); 
+			console.log(ytID);
+			ytID = ytID[1]; }
+		else if( getIDRX.test(songs[sID].link) ){ ytID = getIDRX.exec(songs[sID].link); ytID = ytID[1]; }
+		 
+		else { console.log("unable to parse youtube id from "+songs[sID].link); return; }
+	}
+	console.log("Youtube iD: "+ytID);
+
 	$('#tubey').html("<div id='sacrifice' style='z-index: 0;'></div>");
 	var params = { allowScriptAccess: "always", wmode: "transparent" };
 	var atts = { id: "myytplayer" };
-	swfobject.embedSWF("http://www.youtube.com/v/"+songs[sID].id+"?enablejsapi=1&playerapiid=ytplayer","sacrifice",560,530,"8",null,null,params,atts);
+	swfobject.embedSWF("http://www.youtube.com/v/"+ytID+"?enablejsapi=1&playerapiid=ytplayer","sacrifice",560,530,"8",null,null,params,atts);
 	}
 	$('div.title').html(songs[sID].title_r);
-	cursong = sID;
+	//cursong = sID;
 	$('#nav_status').html( cursong+' / '+songs.length);
 	if(scrollAPI){ scrollAPI.seekTo(cursong); }
 }
@@ -243,7 +281,7 @@ function toggleInfo(){
 		$('#tube_img').attr('src','http://img.youtube.com/vi/'+songs[sID].id+'/2.jpg');
 		$('#song_comment').html('<b>+'+songs[sID].score+'</b><br><i>'+songs[sID].body+'</i><br>-'+songs[sID].author);
 		
-		$('div.song_info').css('top', mouseY-550);
+		$('div.song_info').css('top', mouseY+50);
 		$('div.song_info').css('display','block'); 
 	}
 }
@@ -335,6 +373,7 @@ function navi(whereto){
 	else if(whereto == "scrollforward"){
 		scrollit.nextPage();
 	}
+	console.log("navi cursong now "+cursong);
 	
 }
 
@@ -418,7 +457,7 @@ div.randomizer:hover { background: #999; cursor: pointer;  }
 div.navi { background: #3A3636; border: 1px solid #fff; width: 100%; margin: 0px;} 
 
 div.song_info { z-index: 1200; font-size: 0.6em; position: absolute; background: #2A2626; width: 250px; height: 210px; border: 2px solid #ccc; left: -675px; 
-	display: none; overflow: hidden; }
+	display: none; overflow: hidden; z-index: 600; }
 div.song_info h3 { width: 100%; font-size: 1.2em; height: 8px; }
 #tube_preview { width: 100%; height: 110px; background: #000; }
 #tube_preview img { float: left; }
@@ -430,7 +469,7 @@ div.log { position: fixed; top: 100px; left: 400px; width: 250px; height: 50px; 
 #aboutits { display: none; border: 1px solid black; color: #ccc; font-size: 0.6em; }
 #divplayer { background-color: #000; z-index: 0; }
 
-div.navi_playlists { display: none; position: relative; width: 280px; background: #000; border: 1px solid #fff; min-height: 300px; max-height: 580px; float: right; top: -170px;}
+div.navi_playlists { display: none; position: absolute; width: 280px; background: #000; border: 1px solid #fff; min-height: 300px; max-height: 580px; right: 460px; top: 180px;}
 div.pl_header { background: #3A3636; border-bottom: 1px solid #333; }
 div.pl_info { display: none; background: #ccc; color: #000; }
 li.pl_list:hover { background: #3A3636; cursor: pointer; }
@@ -465,11 +504,11 @@ img.pl_navbar :hover { background-color: #3A3636; }
 
 <div class="pl_navbar">
 	<span id="nav_status"></span><br>
-	<img src="/hivemind/btn_back.png" onClick='navi("scrollback");'><br>
-	<img src="/hivemind/btn_prev.png" onClick='navi("prev");'><br>
+	<img src="btn_back.png" onClick='navi("scrollback");'><br>
+	<img src="btn_prev.png" onClick='navi("prev");'><br>
 	<img id="btn_play" src="/hivemind/btn_play.png"><br>
-	<img src="/hivemind/btn_next.png" onClick='navi("next");'><br>
-	<img src="/hivemind/btn_forward.png" onClick='navi("scrollforward");'><br>
+	<img src="btn_next.png" onClick='navi("next");'><br>
+	<img src="btn_forward.png" onClick='navi("scrollforward");'><br>
 </div>
 
 <div class="bigbox">
