@@ -6,7 +6,7 @@
 	description: Access memcache to get parsed reddit music links
 	output as json for easy ajaxing
 **** ***** */
-
+header("Access-Control-Allow-Origin: *");
 header('Content-type: application/json');
 $playlist = "recommends";
 

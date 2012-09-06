@@ -168,7 +168,7 @@ function parseSubreddit($source,$raw){
 		if($source[2]['video'] ){
 			if( $entry->domain == 'youtube.com'  ){
 				$ismedia = 1; }
-			if($entry->media && $entry->media->oembed && $entry->media->oembed->type == "video"){ $ismedia = 1; $oembed = 1; }
+			if($entry->media && $entry->media->oembed && $entry->media->oembed->type == "rich"){ $ismedia = 1; $oembed = 1; }
 			if(!$oembed && isset($entry) && $entry->media_embed && isset($entry->media_embed->content) ){ $ismedia = 1; $rembed = 1; }
 		}
 		if($source[2]['music'] ){
@@ -231,6 +231,7 @@ function parseSubreddit($source,$raw){
 
 //parse embedded media
 function parseSubEmbed($entry){
+	$thumburl = ($entry->media->oembed->thumbnail) ? $entry->media->oembed->thumbnail : 'http://www.clydeandforthmedia.co.uk/images/error.jpg';
 	$info = array (
 				"id"=> ($entry->subreddit."_".$entry->id),
 				"title_r"=>$entry->title,
@@ -243,7 +244,7 @@ function parseSubEmbed($entry){
 				"embed_html"=>$entry->media->oembed->html,
 				"embed" => 1,
 				"embed_provider"=>$entry->media->oembed->provider_name,
-				"embed_thumb"=> $entry->media->oembed->thumbnail_url,
+				"embed_thumb"=> $thumburl,
 				"downs"=>$entry->downs,
 				"link"=> $entry->url,
 				"score"=> ($entry->ups - $entry->downs)
@@ -315,7 +316,7 @@ function parseChildren_Comments($types,$list)
 		//if($i > $limit) { exit; }
 		
 		if($types['video'] || $types['music'] ) {
-		if( preg_match('/\[(.+?)\]\(http:\/\/www\.youtube\.com\/watch(?:\?|(?:\#\!))v=([\w\-]+)/S',$li->data->body,$matches) )
+		if($li->data && $li->data->body &&  preg_match('/\[(.+?)\]\(http:\/\/www\.youtube\.com\/watch(?:\?|(?:\#\!))v=([\w\-]+)/S',$li->data->body,$matches) )
 		{
 			//if($debug) { print $matches[0]."\n".$matches[1]." - ".$matches[2]."\n\n"; }
 			$song_info = array (
@@ -336,7 +337,7 @@ function parseChildren_Comments($types,$list)
 			
 		} 
 		else {
-			if( preg_match('/http:\/\/www\.youtube\.com\/watch\?v=([\w\-\_]+)/S',$li->data->body_html,$matches) )
+			if($li->data && $li->data->body_html && preg_match('/http:\/\/www\.youtube\.com\/watch\?v=([\w\-\_]+)/S',$li->data->body_html,$matches) )
 			{
 			 if($debug) { print $matches[0]."\n".$li->data->body."\n\n"; }
                         $song_info = array (
@@ -362,7 +363,7 @@ function parseChildren_Comments($types,$list)
 		}
 		
 		
-		if($li->replies->kind == "Listing"){ parseChildren_Comments($types, $li->replies->data->children); }
+		if($li->replies && $li->replies->kind && $li->replies->kind == "Listing"){ parseChildren_Comments($types, $li->replies->data->children); }
 
 		$i++;
 	} //end loop
