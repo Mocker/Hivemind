@@ -17,8 +17,10 @@ header("Access-Control-Allow-Origin: *");
         if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']))
             header("Access-Control-Allow-Headers: {$_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']}");
 
+
         exit(0);
     }
+
 
 
 header('Content-type: application/json');
