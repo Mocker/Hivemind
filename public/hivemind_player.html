@@ -469,6 +469,9 @@ function showNotice(options)
 	    		playerOptions.currentNotice = undefined;
 	    	} 
 	    };
+	    notification_test.onclick = function(){
+	    	navi("next");
+	    };
 	    if(playerOptions.currentNotice){ playerOptions.currentNotice.close(); }
 	    console.log("Showing notification "+msg);
 	    notification_test.show();
