@@ -1,0 +1,48 @@
+<html>
+<head>
+<title>Notification</title>
+<script src="http://cdn.jquerytools.org/1.1.2/full/jquery.tools.min.js"></script>
+<script type="text/javascript">
+var urlParams = {};
+$(document).ready(function(){
+	console.log("Notification HTML Loaded");
+	parseURL();
+})
+function parseURL(){
+
+    var match,
+        pl     = /\+/g,  // Regex for replacing addition symbol with a space
+        search = /([^&=]+)=?([^&]*)/g,
+        decode = function (s) { return decodeURIComponent(s.replace(pl, " ")); },
+        query  = window.location.search.substring(1);
+
+    while (match = search.exec(query))
+       urlParams[decode(match[1])] = decode(match[2]);
+
+   console.log(urlParams);
+    injectParams();
+}
+
+//change body and title to match params
+function injectParams()
+{
+	var bhtml = 'SONG LOADED - ERROR PARSING URL -';
+	if(urlParams.title){ 
+		document.title = urlParams.title;
+		bhtml = '<img style="float: left; margin-right: 5px;" src="http://ryanguthrie.com/site_media/images/fishy_icon32a.png">'; 
+		bhtml += '<b>'+urlParams.title+'</b><br>'; 
+	}
+	if(urlParams.desc){ bhtml += urlParams.desc; }
+	document.body.innerHTML = bhtml;
+}
+
+function whut(){
+	console.log("WHAT");
+	alert("WHUT");
+}
+</script>
+</head>
+<body>
+SONG LOADED <input type='button' value='ClickMe' onClick='whut();'>
+</body>
+</html>
