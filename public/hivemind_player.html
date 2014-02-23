@@ -144,6 +144,36 @@ function onYouTubePlayerReady(playerId) {
 		}
     }
 
+function onYouTubeIframeAPIReady() {
+          console.log("Youtube IFrame api ready");
+	$('#ytiframe').remove();
+	$('#tubey').prepend("<div id='ytiframe'></div>");
+	var ywidth = parseInt($('#tubey').width())+'';
+	var yheight = parseInt($('#tubey').height())+'';
+	ytplayer = new YT.Player('ytiframe', {
+		height: '532', //todo:: responsive!
+		width: '562',
+		events: {
+			'onReady': onPlayerReady,
+			'onStateChange': onPlayerStateChange
+		}
+	});
+	$('#ytiframe').hide();
+		
+    
+    }
+
+function onPlayerReady(event) {
+	if(cursong !== false) event.target.playVideo();
+}
+
+function onPlayerStateChange(event){
+	//TODO:: check flag for continous play
+	if(event.data == YT.PlayerState.ENDED && cursong < numsongs-1) {
+		loadSong(cursong+1);
+	}	
+}
+
 function checkPlayer(){
 	if(ytplayer){
 		var dur = ytplayer.getDuration();
@@ -229,15 +259,17 @@ function showInfo(div,sID)
 	//cursong = sID;
 	
 	$('#song_title').html( songs[sID].title_r );
-	if(songs[sID].thumbnail){ $('#tube_img').attr('src',songs[sID].thumbnail); }
+	
+	if(songs[sID].yt_id) $('#tube_img').attr('src','http://img.youtube.com/vi/'+songs[sID].yt_id+'/2.jpg');
+	else if(songs[sID].thumbnail){ $('#tube_img').attr('src',songs[sID].thumbnail); }
 	else if(songs[sID].embed && songs[sID].embed_thumb){  $('#tube_img').attr('src',songs[sID].embed_thumb); }
-	else if(songs[sID].source == "youtube" || songs[sID].source == "youtube.com"){ $('#tube_img').attr('src','http://img.youtube.com/vi/'+songs[sID].id+'/2.jpg'); }
+	else if(songs[sID].source == "youtube" || songs[sID].source == "youtube.com"){ $('#tube_img').attr('src','http://img.youtube.com/vi/'+songs[sID].yt_id+'/2.jpg'); }
 	else { $('#tube_img').attr('src',''); }
-	$('#song_comment').html('<b>+'+songs[sID].score+'</b><br><i>'+songs[sID].body+'</i><br>-'+songs[sID].author);
+	$('#song_comment').html('<b>+'+songs[sID].score+'</b><br><i><a href="'+songs[sID].link+'" target="_blank">'+(songs[sID].body?songs[sID].body:"Source")+'</a></i><br>-'+songs[sID].author);
 	
 	var divOff = $(div).offset();
-	$('div.song_info').css('top', divOff.top);
-	$('div.song_info').css('left', divOff.left-300);
+	//$('div.song_info').css('top', divOff.top);
+	//$('div.song_info').css('left', divOff.left-300);
 	$('div.song_info').css('display','block');
 	divOff = $('div.song_info').offset();
 }
@@ -253,7 +285,8 @@ function loadSong(sID)
 	cursong = parseInt(sID);
 	$('div.title').html("Loading "+songs[sID].title);
 	if( songs[sID].embed && songs[sID].source != 'youtube.com' && songs[sID].source != 'youtu.be' ){
-		var params = { allowScriptAccess: "always", wmode: "transparent" };
+		$('#ytiframe').hide();
+		var params = { allowScriptAccess: "always" };
 		var matches = embedRE.exec(songs[sID].embed_html);
 		var swfurl ;
 		console.log("Media "+songs[sID].link+" has embed and is not youtube");
@@ -332,6 +365,7 @@ function loadSong(sID)
 
 	}
 	else if( songs[sID].media == "pic" ){
+		$('#ytiframe').hide();
 		//TODO:: Load images via lightbox or something less shitty
 		songs[sID].link.replace(/\\/g,'');
 		$('#tubey').html('<center><div class="yoxview"><a href="'+songs[sID].link+'" target="_blank"><img id="tubey_pic" src="'+songs[sID].link+'" title="'+songs[sID].title_r+'"></a></div></center>');
@@ -374,10 +408,16 @@ function loadSong(sID)
 		}
 		console.log("Youtube iD: "+ytID);
 
-		$('#tubey').html("<div id='sacrifice' style='z-index: 0;'></div>");
-		var params = { allowScriptAccess: "always", wmode: "transparent" };
+		//$('#tubey').html("<div id='sacrifice' style='z-index: 0;'></div>");
+		var params = { allowScriptAccess: "always" };
 		var atts = { id: "myytplayer" };
-		swfobject.embedSWF("http://www.youtube.com/v/"+ytID+"?enablejsapi=1&playerapiid=ytplayer","sacrifice",560,530,"8",null,null,params,atts);
+		ytplayer.loadVideoById(ytID);
+		songs[sID].yt_id = ytID;
+		$('#ytiframe').show();
+		//swfobject.embedSWF("http://www.youtube.com/v/"+ytID+"?enablejsapi=1&playerapiid=ytplayer&version=3","sacrifice",560,530,"8",null,null,params,atts);
+		console.log("Embedded in sacrifice..");
+	} else {
+		$('#ytiframe').hide();
 	}
 
 
@@ -393,10 +433,10 @@ function toggleInfo(){
 	else {
 		var sID = cursong; 
 		$('#song_title').html( songs[sID].title_r );
-		$('#tube_img').attr('src','http://img.youtube.com/vi/'+songs[sID].id+'/2.jpg');
-		$('#song_comment').html('<b>+'+songs[sID].score+'</b><br><i>'+songs[sID].body+'</i><br>-'+songs[sID].author);
+		$('#tube_img').attr('src','http://img.youtube.com/vi/'+songs[sID].yt_id+'/2.jpg');
+		$('#song_comment').html('<b>+'+songs[sID].score+'</b><br><i><a href="'+songs[sID].link+'" target="_blank">'+(songs[sID].body?songs[sID].body:"Source")+'</a></i><br>-'+songs[sID].author);
 		
-		$('div.song_info').css('top', mouseY+50);
+		//$('div.song_info').css('top', mouseY+50);
 		$('div.song_info').css('display','block'); 
 	}
 }
@@ -495,6 +535,12 @@ function navi(whereto){
 //do stuff when dom is finished
 $(function(){
 	//document.onmousemove = getMouseXY;
+
+	//insert YT api
+	var tag = document.createElement('script');
+	tag.src = 'http://www.youtube.com/iframe_api';
+	var firstScriptTag = document.getElementsByTagName('script')[0];
+	firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
 	$('ul.pl_list li').click( function() {
 			$(this).children().slideToggle("slow") ;
@@ -662,10 +708,10 @@ div.randomizer { height: 22px; background: #666; color: #000; border: 1px solid 
 div.randomizer:hover { background: #999; cursor: pointer;  }
 div.navi { background: #3A3636; border: 1px solid #fff; width: 100%; margin: 0px;} 
 
-div.song_info { z-index: 1200; font-size: 0.6em; position: absolute; background: #2A2626; width: 250px; height: 210px; border: 2px solid #ccc; left: -675px; 
+div.song_info { z-index: 1200; font-size: 0.6em; position: absolute; background: #2A2626; width: 250px; height: 210px; border: 2px solid #ccc;  
 	display: none; overflow: hidden; z-index: 600; }
 div.song_info h3 { width: 100%; font-size: 1.2em; height: 8px; }
-#tube_preview { width: 100%; height: 110px; background: #000; }
+#tube_preview { width: 100%; height: 130px; background: #000; }
 #tube_preview img { float: left; }
 div.song_info div blockquote { padding-left: 15px; }
 
@@ -675,7 +721,7 @@ div.log { position: fixed; top: 100px; left: 400px; width: 250px; height: 50px; 
 #aboutits { display: none; border: 1px solid black; color: #ccc; font-size: 0.6em; }
 #divplayer { background-color: #000; z-index: 0; }
 
-div.navi_playlists { display: none; position: absolute; width: 280px; background: #000; border: 1px solid #fff; min-height: 300px; max-height: 580px; right: 460px; top: 180px;}
+div.navi_playlists { z-index:200; display: none; position: absolute; width: 280px; background: #000; border: 1px solid #fff; min-height: 300px; max-height: 580px; right: 0px; top:0px;}
 div.pl_header { background: #3A3636; border-bottom: 1px solid #333; }
 div.pl_info { display: none; background: #ccc; color: #000; }
 li.pl_list:hover { background: #3A3636; cursor: pointer; }
@@ -715,6 +761,12 @@ ul.tablist { clear: both; }
 	top: 150px;
 	left: 350px;
 	z-index: 400;
+}
+
+#ytiframe {
+	position:absolute;
+	top:0px;
+	z-index:100;
 }
 
 </style>
@@ -766,7 +818,7 @@ ul.tablist { clear: both; }
 		</div>
 	</div>
 	
-	<div class="player" id="divplayer">
+	<div class="player" id="divplayer" style="position:relative;">
 		<div id='playernotice'></div>
 		<span id='tubey'><center><span id='tubey_txt'>Hit play or choose a new playlist</span><br>
 		<!--<img src='http://thegupstudio.com/spideydance.gif'>-->
@@ -782,10 +834,10 @@ ul.tablist { clear: both; }
 
 				<ul class="tablist ui-tabs-nav ui-helper-reset ui-helper-clearfix ui-widget-header ui-corner-all">
 					<li class="ui-state-default ui-corner-top ui-tabs-selected ui-state-active">
-						<a href="#list_reddits"><img width=32 height=32 src='http://www.reddit.com/static/spreddit5.gif'></a></li>
+						<a href="#list_reddits"><img width=32 height=32 src='http://i.imgur.com/w2zv2La.gif'></a></li>
 					<li class="ui-state-default ui-corner-top">
 						<a href="#list_youtube"><img width=32 height=32 src='http://s.ytimg.com/yt/img/creators_corner/YouTube/youtube_32x32.png'></a></li>
-					<li class="ui-state-default ui-corner-top">
+					<li class="ui-state-default ui-corner-top" style="display:none;">
 						<a href="#list_8track"><img width=32 height=32 src='http://a0.ourstage.com/landing/microsites/artists/getsocial/socialicons/8tracks_icon.jpg'></a></li>
 					<li class="ui-state-default ui-corner-top">
 						<a href='#list_misc'>Misc</a></li>
@@ -797,7 +849,7 @@ ul.tablist { clear: both; }
 			<div id='list_youtube' class="tabcontent ui-tabs-panel ui-widget-content ui-corner-bottom">
 				Coming soon.. play youtube playlists, search and manage your own from within Hivemind
 			</div>
-			<div id='list_8track' class="tabcontent ui-tabs-panel ui-widget-content ui-corner-bottom">
+			<div style='display:none;' id='list_8track' class="tabcontent ui-tabs-panel ui-widget-content ui-corner-bottom">
 				Coming soon.. play music from 8tracks
 			</div>
 			<div id='list_misc' class="tabcontent ui-tabs-panel ui-widget-content ui-corner-bottom">
@@ -872,7 +924,7 @@ ul.tablist { clear: both; }
 	
 
 	
-	<div class="menu">
+	<div class="menu" style='position:relative;'>
 		<div class="navi">
 			<input type=button name='show_playlist' value='[ < ]' onclick="$('div.navi_playlists').slideToggle('slow');">
 			<span id='navi_playtitle' alt='current playlist'>Reddit Recommend</span>
@@ -889,7 +941,7 @@ ul.tablist { clear: both; }
 		<div class="randomizer" onClick="getLucky();">Feelin Lucky Punk?</div>
 			
 		
-		<div class="song_info">
+		<div class="song_info" style='top:0px; right:250px;'>
 			<h3 id='song_title'>Song Title</h3>
 			<div id='tube_preview'>
 				<img id='tube_img' src='http://img.youtube.com/vi/ZES3nJQYJok/2.jpg' height="120" width="130">
