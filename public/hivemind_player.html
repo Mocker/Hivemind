@@ -13,6 +13,9 @@
 	<script src="encoder.js"></script>
 	<link href='http://fonts.googleapis.com/css?family=Krona+One' rel='stylesheet' type='text/css'>
 	<link href='http://fonts.googleapis.com/css?family=Marvel' rel='stylesheet' type='text/css'>
+
+	<!-- soundcloud js controls -->
+	<script src="https://w.soundcloud.com/player/api.js"></script>
 	
 	<!--<script src="/scripts/yoxview/yoxview-init.js"></script>-->
 <script>
@@ -33,6 +36,7 @@ var playerOptions = {
 	currentNotice: undefined
 };
 var urlParams;
+var scWidget;
 
 //static playlists for now
 var playlists = new Array();
@@ -233,6 +237,17 @@ function parseSongs(jDat)
 		numsongs = i;
 		$("#itemlist").append("<div  class='song_item' onmouseover='showInfo(this,"+i+");' onmouseout='hideInfo(this);' onClick='loadSong("+i+");'>"+item.title_r+"</div>");
 		
+		//fix thumbs
+		if(songs[i].source=="youtube.com" && songs[i].link ){
+			var matches = songs[i].link.match(/v=([\w\d]+)/);
+			if(matches && matches.length > 1){
+				songs[i].yt_id = matches[1];
+				songs[i].embed_thumb = "http://img.youtube.com/vi/"+matches[1]+"/1.jpg";
+			}
+		} else if(!songs[i].embed_thumb || songs[i].embed_thumb.indexOf("clydeandfor")>0) {
+			songs[i].embed_thumb = 'http://ryanguthrie.com/site_media/images/icons/stepfinal3.png';
+		}
+
 	});
 
 	//scrollable go
@@ -265,7 +280,7 @@ function showInfo(div,sID)
 	else if(songs[sID].embed && songs[sID].embed_thumb){  $('#tube_img').attr('src',songs[sID].embed_thumb); }
 	else if(songs[sID].source == "youtube" || songs[sID].source == "youtube.com"){ $('#tube_img').attr('src','http://img.youtube.com/vi/'+songs[sID].yt_id+'/2.jpg'); }
 	else { $('#tube_img').attr('src',''); }
-	$('#song_comment').html('<b>+'+songs[sID].score+'</b><br><i><a href="'+songs[sID].link+'" target="_blank">'+(songs[sID].body?songs[sID].body:"Source")+'</a></i><br>-'+songs[sID].author);
+	$('#song_comment').html('<b>+'+songs[sID].score+'</b><br><i><a href="'+songs[sID].link+'" target="_blank">'+(songs[sID].body?songs[sID].body:"Source: "+songs[sID].source)+'</a></i><br>-'+songs[sID].author);
 	
 	var divOff = $(div).offset();
 	//$('div.song_info').css('top', divOff.top);
@@ -285,6 +300,9 @@ function loadSong(sID)
 	cursong = parseInt(sID);
 	$('div.title').html("Loading "+songs[sID].title);
 	$('div.yoxview').parent().remove();
+	$('tubey_txt').remove();
+	$('#sciframe').hide();
+	if(scWidget) scWidget.pause();
 	$('#sacrifice').remove();
 	ytplayer.stopVideo();
 	if( songs[sID].embed && songs[sID].source != 'youtube.com' && songs[sID].source != 'youtu.be' ){
@@ -358,7 +376,47 @@ function loadSong(sID)
 				}
 				console.log(songs[sID].embed_html);
 				var decoded = Encoder.htmlDecode(songs[sID].embed_html);
-				document.getElementById('sacrifice').innerHTML = decoded;
+				//document.getElementById('sacrifice').innerHTML = decoded;
+
+				if(songs[sID].source=='soundcloud.com'){ //bind listener for song finish
+					
+					var foundSource = false;
+					if(scWidget && 0){
+						var src = decoded.match(/src=(http.+?)"/);
+						if(!src||src.length < 1) src = decoded.match(/src="(.+?)"/);
+						if(src && src.length > 0){
+							foundSource = true;
+							src = src[1];
+                                                	//src = src.substr(0,src.length-1);
+                                                	console.log("loading src: "+src);
+                                                	scWidget.load(src);
+                                                	$('#sciframe').show();
+						}
+
+					}
+
+					if(!scWidget || !foundSource)
+					{
+						document.getElementById('sciframe').innerHTML = decoded;
+						scWidget = SC.Widget($('#sciframe>iframe')[0]);
+						scWidget.bind(SC.Widget.Events.PLAY_PROGRESS,function(o){ console.log("play progress",o); });
+						scWidget.bind(SC.Widget.Events.PLAY,function(o){ console.log("sc play"); });
+						scWidget.bind(SC.Widget.Events.FINISH,function(o){ console.log("soundcloud finished");  loadSong(cursong+1); });
+						console.log("soundcloud widget bound");
+						$('#sciframe').show();
+					} else {
+						//var src = songs[sID].embed_html.match(/src=http"(.+?)"/)[0].substr(0,5);
+						//src = src.substr(0,src.length-1);
+						//console.log("loading src: "+src);
+						//scWidget.load(src);
+						//$('#sciframe').show();
+						
+						
+					}
+				} else {
+				 document.getElementById('sacrifice').innerHTML = decoded;
+				}
+
 			}
 			else {
 				console.log("embedding swf");
@@ -773,6 +831,11 @@ ul.tablist { clear: both; }
 	top:0px;
 	z-index:100;
 }
+#sciframe {
+	position:absolute;
+	top:0px;
+	z-index:100;
+}
 
 </style>
 </head>
@@ -825,9 +888,12 @@ ul.tablist { clear: both; }
 	
 	<div class="player" id="divplayer" style="position:relative;">
 		<div id='playernotice'></div>
-		<span id='tubey'><center><span id='tubey_txt'>Hit play or choose a new playlist</span><br>
-		<!--<img src='http://thegupstudio.com/spideydance.gif'>-->
-	</center></span>
+		<span id='tubey'><span id='tubey_txt' style='margin:auto;'>Hit play or choose a new playlist<br>
+		<!--<img src='http://thegupstudio.com/spideydance.gif'>--></span>
+			<div id='sciframe'>
+
+			</div>
+		</span>
 	
 	
 		<div class="navi_playlists">
