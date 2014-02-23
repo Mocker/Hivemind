@@ -353,6 +353,7 @@ function loadSong(sID)
 				songs[sID].embed_html = songs[sID].embed_html.replace('player/?','player/?auto_play=true&amp;');
 				songs[sID].embed_html = songs[sID].embed_html.replace(/maxwidth=\d+/,'maxwidth='+$('div.player').width());
 				songs[sID].embed_html = songs[sID].embed_html.replace(/width="\d+"/,'width='+$('div.player').width());
+				songs[sID].embed_html = songs[sID].embed_html.replace(/src="(.+?)"/,'src="$1&auto_play=true&autoplay=true"');
 				
 				}
 				console.log(songs[sID].embed_html);
