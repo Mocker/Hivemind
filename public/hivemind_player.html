@@ -284,6 +284,9 @@ function loadSong(sID)
 	console.log("Loading "+sID+": "+songs[sID].title+" embed:"+songs[sID].embed+" -- source: "+songs[sID].source);
 	cursong = parseInt(sID);
 	$('div.title').html("Loading "+songs[sID].title);
+	$('div.yoxview').parent().remove();
+	$('#sacrifice').remove();
+	ytplayer.stopVideo();
 	if( songs[sID].embed && songs[sID].source != 'youtube.com' && songs[sID].source != 'youtu.be' ){
 		$('#ytiframe').hide();
 		var params = { allowScriptAccess: "always" };
@@ -339,7 +342,8 @@ function loadSong(sID)
 		}
 
 
-		$('#tubey').html("<div id='sacrifice' style='z-index: 0;'></div>");
+		//$('#sacrifice').remove();
+		$('#tubey').append("<div id='sacrifice' style='z-index: 0;'></div>");
 			
 		var useHTML = false;
 			if(/iframe/.test(songs[sID].embed_html) && (useHTML || ( songs[sID].source != "vimeo.com"))    ){
@@ -368,7 +372,8 @@ function loadSong(sID)
 		$('#ytiframe').hide();
 		//TODO:: Load images via lightbox or something less shitty
 		songs[sID].link.replace(/\\/g,'');
-		$('#tubey').html('<center><div class="yoxview"><a href="'+songs[sID].link+'" target="_blank"><img id="tubey_pic" src="'+songs[sID].link+'" title="'+songs[sID].title_r+'"></a></div></center>');
+		//$('div.yoxview').parent().remove();
+		$('#tubey').append('<center><div class="yoxview"><a href="'+songs[sID].link+'" target="_blank"><img id="tubey_pic" src="'+songs[sID].link+'" title="'+songs[sID].title_r+'"></a></div></center>');
 		var newi = document.createElement("img");
 		newi.setAttribute("src", songs[sID].link); newi.setAttribute("title", songs[sID].title_r);
 		var newd = document.createElement("div");
@@ -408,7 +413,6 @@ function loadSong(sID)
 		}
 		console.log("Youtube iD: "+ytID);
 
-		//$('#tubey').html("<div id='sacrifice' style='z-index: 0;'></div>");
 		var params = { allowScriptAccess: "always" };
 		var atts = { id: "myytplayer" };
 		ytplayer.loadVideoById(ytID);
