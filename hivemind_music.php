@@ -231,7 +231,7 @@ function parseSubreddit($source,$raw){
 
 //parse embedded media
 function parseSubEmbed($entry){
-	$thumburl = ($entry->media->oembed->thumbnail) ? $entry->media->oembed->thumbnail : 'http://www.clydeandforthmedia.co.uk/images/error.jpg';
+	$thumburl = isset($entry->media->oembed->thumbnail) ? $entry->media->oembed->thumbnail : 'http://i.imgur.com/Iu8Sljx.png';
 	$info = array (
 				"id"=> ($entry->subreddit."_".$entry->id),
 				"title_r"=>$entry->title,

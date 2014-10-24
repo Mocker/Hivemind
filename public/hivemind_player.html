@@ -300,7 +300,7 @@ function loadSong(sID)
 	cursong = parseInt(sID);
 	$('div.title').html("Loading "+songs[sID].title);
 	$('div.yoxview').parent().remove();
-	$('tubey_txt').remove();
+	$('#tubey_txt').remove();
 	$('#sciframe').hide();
 	if(scWidget) scWidget.pause();
 	$('#sacrifice').remove();
